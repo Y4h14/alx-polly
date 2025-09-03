@@ -7,10 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/components/ui/use-toast';
+import { createPoll } from '@/lib/actions';
 
 export default function CreatePollPage() {
   const router = useRouter();
   const [options, setOptions] = useState(['', '']);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
   
   // Add a new option field
   const addOption = () => {
@@ -33,19 +40,65 @@ export default function CreatePollPage() {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would send the poll data to the server
-    const formData = new FormData(e.target as HTMLFormElement);
-    const pollData = {
-      title: formData.get('title'),
-      description: formData.get('description'),
-      options: options.filter(option => option.trim() !== ''),
-    };
+    setIsSubmitting(true);
     
-    console.log('Poll created:', pollData);
-    // Redirect to polls page after creation
-    router.push('/polls');
+    try {
+      if (!user) {
+        toast({
+          title: 'Authentication required',
+          description: 'You must be logged in to create a poll',
+          variant: 'destructive'
+        });
+        router.push('/auth/login');
+        return;
+      }
+      
+      const formData = new FormData(e.target as HTMLFormElement);
+      const title = formData.get('title') as string;
+      const description = formData.get('description') as string;
+      const filteredOptions = options.filter(option => option.trim() !== '');
+      
+      if (filteredOptions.length < 2) {
+        toast({
+          title: 'Invalid options',
+          description: 'You must provide at least 2 options',
+          variant: 'destructive'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Use the server action to create the poll
+      const result = await createPoll({
+        title,
+        description,
+        options: filteredOptions,
+        userId: user.id
+      });
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      toast({
+        title: 'Poll created',
+        description: 'Your poll has been created successfully'
+      });
+      
+      // Redirect to polls page after creation
+      router.push('/polls');
+    } catch (error) {
+      console.error('Error creating poll:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create poll. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -119,8 +172,12 @@ export default function CreatePollPage() {
               </Button>
             </div>
             
-            <Button type="submit" className="w-full">
-              Create Poll
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Creating...' : 'Create Poll'}
             </Button>
           </form>
         </CardContent>

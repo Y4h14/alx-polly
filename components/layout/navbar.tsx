@@ -1,14 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   
-  // Check if user is logged in (placeholder for actual auth check)
-  const isLoggedIn = false;
+  const isLoggedIn = !!user;
   
   return (
     <header className="border-b">
@@ -36,7 +40,18 @@ export default function Navbar() {
         </div>
         <div className="flex items-center gap-4">
           {isLoggedIn ? (
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                await signOut();
+                toast({
+                  title: 'Logged out',
+                  description: 'You have been successfully logged out'
+                });
+                router.push('/');
+              }}
+            >
               Logout
             </Button>
           ) : (

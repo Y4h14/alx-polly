@@ -7,17 +7,66 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/components/ui/use-toast';
+import { useForm } from 'react-hook-form';
+
+type RegisterFormValues = {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { signUp, isLoading } = useAuth();
+  const { toast } = useToast();
   
-  // This is a placeholder for the actual registration functionality
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, you would handle registration here
-    console.log('Registration attempted');
-    // Redirect to login page after registration
-    router.push('/auth/login');
+  const form = useForm<RegisterFormValues>({
+    defaultValues: {
+      fullName: '',
+      email: '',
+      password: '',
+      confirmPassword: ''
+    }
+  });
+
+  const onSubmit = async (data: RegisterFormValues) => {
+    try {
+      if (data.password !== data.confirmPassword) {
+        toast({
+          title: 'Passwords do not match',
+          description: 'Please make sure your passwords match',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      const { error } = await signUp(data.email, data.password, data.fullName);
+      
+      if (error) {
+        toast({
+          title: 'Registration failed',
+          description: error.message,
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      toast({
+        title: 'Registration successful',
+        description: 'Please check your email to verify your account'
+      });
+      
+      router.push('/auth/login');
+    } catch (error) {
+      toast({
+        title: 'Registration failed',
+        description: 'An unexpected error occurred',
+        variant: 'destructive'
+      });
+    }
   };
 
   return (
@@ -30,25 +79,65 @@ export default function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="space-y-2">
-              <FormLabel htmlFor="name">Full Name</FormLabel>
-              <Input id="name" type="text" placeholder="John Doe" required />
-            </div>
-            <div className="space-y-2">
-              <FormLabel htmlFor="email">Email</FormLabel>
-              <Input id="email" type="email" placeholder="your@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <FormLabel htmlFor="password">Password</FormLabel>
-              <Input id="password" type="password" required />
-            </div>
-            <div className="space-y-2">
-              <FormLabel htmlFor="confirmPassword">Confirm Password</FormLabel>
-              <Input id="confirmPassword" type="password" required />
-            </div>
-            <Button type="submit" className="w-full">Register</Button>
-          </form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your@email.com" type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating account...' : 'Register'}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-center">
